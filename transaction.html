@@ -63,7 +63,7 @@
             <select id="fStatus" class="form-select">
               <option value="">-- Tất cả trạng thái --</option>
               <option>Chờ duyệt</option>
-              <option>Đã duyệt</option>
+              <option>Đã chi</option>
               <option>Từ chối</option>
             </select>
           </div>
@@ -142,6 +142,40 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
           <button class="btn btn-primary" id="saveBtn" onclick="saveTx()">Lưu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MODAL DUYỆT (Đã chi) / TỪ CHỐI ===== -->
+  <div class="modal fade" id="actionModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header" style="background:var(--ink);color:#fff">
+          <h5 class="modal-title" id="actionTitle">Duyệt giao dịch</h5>
+          <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="actId">
+
+          <!-- Duyệt: upload ảnh chuyển tiền -->
+          <div id="approveSection">
+            <label class="form-label">Ảnh xác nhận đã chuyển tiền <span class="text-danger">*</span></label>
+            <input id="proofImage" type="file" accept="image/*" class="form-control">
+            <div class="mt-2">
+              <img id="proofPreview" class="d-none" style="max-height:160px;border-radius:8px">
+            </div>
+          </div>
+
+          <!-- Từ chối: nhập lý do -->
+          <div id="rejectSection" class="d-none">
+            <label class="form-label">Lý do từ chối chi tiền <span class="text-danger">*</span></label>
+            <textarea id="rejectReason" class="form-control" rows="3" placeholder="Nhập lý do từ chối..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+          <button class="btn btn-primary" id="actSaveBtn" onclick="confirmAction()">Lưu</button>
         </div>
       </div>
     </div>
