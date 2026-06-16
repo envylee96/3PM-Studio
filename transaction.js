@@ -1,17 +1,28 @@
 /**********************************************************************
  * transaction.js
  **********************************************************************/
-let txModal, uploadedImageUrl = '';
+let txModal, actionModal, uploadedImageUrl = '', actionMode = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   txModal = new bootstrap.Modal(document.getElementById('txModal'));
+  actionModal = new bootstrap.Modal(document.getElementById('actionModal'));
   // mặc định lọc theo tháng hiện tại
   document.getElementById('fMonth').value = new Date().toISOString().substring(0, 7);
 
-  // preview ảnh
+  // preview ảnh hóa đơn (form thêm/sửa)
   document.getElementById('fImage').addEventListener('change', (e) => {
     const f = e.target.files[0];
     const prev = document.getElementById('imgPreview');
+    if (f) {
+      prev.src = URL.createObjectURL(f);
+      prev.classList.remove('d-none');
+    } else prev.classList.add('d-none');
+  });
+
+  // preview ảnh chuyển tiền (form duyệt)
+  document.getElementById('proofImage').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    const prev = document.getElementById('proofPreview');
     if (f) {
       prev.src = URL.createObjectURL(f);
       prev.classList.remove('d-none');
@@ -78,7 +89,15 @@ function renderRows(rows) {
   tbody.innerHTML = rows.map(r => {
     const typeCls = r.type === 'Income' ? 'type-income' : 'type-expense';
     const typeTxt = r.type === 'Income' ? 'Thu' : 'Chi';
-    const st = statusBadge(r.status);
+    // badge trạng thái + thông tin kèm theo (ảnh chuyển tiền / lý do từ chối)
+    let st = statusBadge(r.status);
+    if (r.status === 'Đã chi' && r.proofImage) {
+      st += ` <a href="${r.proofImage}" target="_blank" title="Ảnh đã chuyển tiền"><i class="bi bi-receipt text-success"></i></a>`;
+    }
+    if (r.status === 'Từ chối' && r.rejectReason) {
+      st += ` <i class="bi bi-info-circle text-danger" title="Lý do: ${esc(r.rejectReason)}"></i>`;
+    }
+
     const img = r.imageUrl
       ? `<img src="${r.imageUrl}" class="thumb" onclick="window.open('${r.imageUrl}','_blank')">`
       : '<span class="text-muted small">—</span>';
@@ -87,8 +106,8 @@ function renderRows(rows) {
     let approveBtns = '';
     if (isAcct && r.status === 'Chờ duyệt') {
       approveBtns = `
-        <button class="btn btn-sm btn-success" title="Duyệt" onclick="setStatus('${r.id}','Đã duyệt')"><i class="bi bi-check-lg"></i></button>
-        <button class="btn btn-sm btn-warning" title="Từ chối" onclick="setStatus('${r.id}','Từ chối')"><i class="bi bi-x-lg"></i></button>`;
+        <button class="btn btn-sm btn-success" title="Duyệt - đã chi" onclick="openApprove('${r.id}')"><i class="bi bi-check-lg"></i></button>
+        <button class="btn btn-sm btn-warning" title="Từ chối" onclick="openReject('${r.id}')"><i class="bi bi-x-lg"></i></button>`;
     }
 
     return `<tr>
@@ -113,7 +132,7 @@ function renderRows(rows) {
 }
 
 function statusBadge(s) {
-  const map = { 'Chờ duyệt': 'st-pending', 'Đã duyệt': 'st-approved', 'Từ chối': 'st-rejected' };
+  const map = { 'Chờ duyệt': 'st-pending', 'Đã chi': 'st-approved', 'Từ chối': 'st-rejected' };
   return `<span class="badge badge-status ${map[s] || ''}">${s}</span>`;
 }
 
@@ -206,13 +225,54 @@ async function saveTx() {
   }
 }
 
-// ---- DUYỆT / TỪ CHỐI ----
-async function setStatus(id, status) {
-  if (!confirm(`Xác nhận chuyển trạng thái sang "${status}"?`)) return;
+// ---- DUYỆT (Đã chi) / TỪ CHỐI ----
+function openApprove(id) {
+  actionMode = 'approve';
+  document.getElementById('actId').value = id;
+  document.getElementById('actionTitle').textContent = 'Duyệt chi — tải ảnh đã chuyển tiền';
+  document.getElementById('proofImage').value = '';
+  document.getElementById('proofPreview').classList.add('d-none');
+  document.getElementById('rejectReason').value = '';
+  document.getElementById('approveSection').classList.remove('d-none');
+  document.getElementById('rejectSection').classList.add('d-none');
+  actionModal.show();
+}
+
+function openReject(id) {
+  actionMode = 'reject';
+  document.getElementById('actId').value = id;
+  document.getElementById('actionTitle').textContent = 'Từ chối chi tiền';
+  document.getElementById('rejectReason').value = '';
+  document.getElementById('proofImage').value = '';
+  document.getElementById('proofPreview').classList.add('d-none');
+  document.getElementById('approveSection').classList.add('d-none');
+  document.getElementById('rejectSection').classList.remove('d-none');
+  actionModal.show();
+}
+
+async function confirmAction() {
+  const id = document.getElementById('actId').value;
+  const btn = document.getElementById('actSaveBtn');
+  btn.disabled = true;
   try {
-    await Api.updateStatus(id, status);
+    if (actionMode === 'approve') {
+      const f = document.getElementById('proofImage').files[0];
+      if (!f) { alert('Vui lòng chọn ảnh xác nhận đã chuyển tiền'); btn.disabled = false; return; }
+      btn.textContent = 'Đang tải ảnh…';
+      const up = await Api.uploadImage(f);
+      await Api.updateStatus(id, 'Đã chi', { proofImage: up.url });
+    } else {
+      const reason = document.getElementById('rejectReason').value.trim();
+      if (!reason) { alert('Vui lòng nhập lý do từ chối'); btn.disabled = false; return; }
+      await Api.updateStatus(id, 'Từ chối', { reason });
+    }
+    actionModal.hide();
     loadTable();
-  } catch (e) { alert('Lỗi: ' + e.message); }
+  } catch (e) {
+    alert('Lỗi: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Lưu';
+  }
 }
 
 // ---- XÓA ----
