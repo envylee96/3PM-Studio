@@ -31,10 +31,12 @@ var USER_HEADERS = ['username', 'password', 'displayName', 'role'];
 //  ROUTER
 // ===================================================================
 function doGet(e) {
+  e = e || {};
   return handle(e, (e.parameter || {}));
 }
 
 function doPost(e) {
+  e = e || {};
   var params = {};
   try {
     // Frontend gửi JSON dưới dạng text/plain để tránh CORS preflight
@@ -213,6 +215,7 @@ function apiDashboard(p) {
 //  API: CREATE TRANSACTION
 // ===================================================================
 function apiCreate(p) {
+  var actor = requireUser(p);          // phải là user hợp lệ trong sheet users
   var sheet = getSheet(SHEET_TX);
   var qty = num(p.quantity);
   var price = num(p.unitPrice);
@@ -229,7 +232,7 @@ function apiCreate(p) {
     note: p.note || '',
     imageUrl: p.imageUrl || '',
     createdAt: fmtDate(new Date()),
-    createdBy: p.createdBy || 'staff',
+    createdBy: actor.username,       // lấy từ user đã xác thực, không tin client
     proofImage: '',
     rejectReason: ''
   };
@@ -242,6 +245,7 @@ function apiCreate(p) {
 //  API: UPDATE (sửa nội dung giao dịch)
 // ===================================================================
 function apiUpdate(p) {
+  requireUser(p);                      // phải là user hợp lệ
   var rows = readAll(SHEET_TX);
   var target = findById(rows, p.id);
   var sheet = getSheet(SHEET_TX);
@@ -274,6 +278,7 @@ function apiUpdate(p) {
 //  API: UPDATE STATUS  (Kế toán duyệt / từ chối)
 // ===================================================================
 function apiUpdateStatus(p) {
+  requireUser(p, ['accountant']);      // chỉ Kế toán được duyệt / từ chối
   var allow = ['Chờ duyệt', 'Đã chi', 'Từ chối'];
   if (allow.indexOf(p.status) === -1) throw new Error('Trạng thái không hợp lệ');
 
@@ -305,6 +310,7 @@ function apiUpdateStatus(p) {
 //  API: DELETE
 // ===================================================================
 function apiDelete(p) {
+  requireUser(p);                      // phải là user hợp lệ
   var rows = readAll(SHEET_TX);
   var target = findById(rows, p.id);
   getSheet(SHEET_TX).deleteRow(target._row);
@@ -349,53 +355,95 @@ function getOrCreateFolder(name) {
 //  API: LOGIN (đơn giản – kiểm tra username/password trong sheet users)
 // ===================================================================
 function apiLogin(p) {
+  var u = findUser(p.username, p.password);
+  if (!u) throw new Error('Sai tài khoản hoặc mật khẩu');
+  return { username: u.username, displayName: u.displayName, role: u.role };
+}
+
+// ===================================================================
+//  PHÂN QUYỀN - tất cả dựa trên dữ liệu sheet "users"
+// ===================================================================
+
+/** Tìm user khớp username + password (dùng cho login) */
+function findUser(username, password) {
   var users = readAll(SHEET_USER);
   for (var i = 0; i < users.length; i++) {
-    if (String(users[i].username) === String(p.username) &&
-        String(users[i].password) === String(p.password)) {
-      return {
-        username: users[i].username,
-        displayName: users[i].displayName,
-        role: users[i].role
-      };
+    if (String(users[i].username) === String(username) &&
+        String(users[i].password) === String(password)) {
+      return users[i];
     }
   }
-  throw new Error('Sai tài khoản hoặc mật khẩu');
+  return null;
+}
+
+/** Tìm user theo username (dùng để xác thực actor mỗi request ghi) */
+function getUserByName(username) {
+  if (!username) return null;
+  var users = readAll(SHEET_USER);
+  for (var i = 0; i < users.length; i++) {
+    if (String(users[i].username) === String(username)) return users[i];
+  }
+  return null;
+}
+
+/**
+ * Bắt buộc người gọi (p.actor) phải là user hợp lệ trong sheet users.
+ * Nếu truyền 'roles' thì role của user phải nằm trong danh sách đó.
+ * Trả về object user (đã lấy role thật từ sheet).
+ */
+function requireUser(p, roles) {
+  var u = getUserByName(p.actor);
+  if (!u) throw new Error('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
+  if (roles && roles.indexOf(String(u.role)) === -1) {
+    throw new Error('Tài khoản "' + u.username + '" (' + u.role + ') không có quyền thực hiện thao tác này.');
+  }
+  return u;
 }
 
 // ===================================================================
 //  SETUP: chạy 1 lần để tạo cấu trúc + dữ liệu mẫu
 // ===================================================================
+// AN TOÀN: chạy lại bao nhiêu lần cũng được, KHÔNG xóa dữ liệu thật.
+// - Tạo sheet nếu chưa có
+// - Ghi header nếu sheet trống; tự thêm cột mới còn thiếu (giữ nguyên data)
+// - Chỉ nạp dữ liệu mẫu khi sheet CHƯA có giao dịch nào (lần đầu)
 function setup() {
   var book = ss();
 
   // ----- sheet transactions -----
   var tx = book.getSheetByName(SHEET_TX) || book.insertSheet(SHEET_TX);
-  tx.clear();
-  tx.getRange(1, 1, 1, TX_HEADERS.length).setValues([TX_HEADERS]).setFontWeight('bold');
-  tx.setFrozenRows(1);
+  if (tx.getLastRow() === 0) {
+    tx.getRange(1, 1, 1, TX_HEADERS.length).setValues([TX_HEADERS]).setFontWeight('bold');
+    tx.setFrozenRows(1);
+  }
+  ensureTxHeaders(); // thêm cột mới (proofImage, rejectReason...) mà KHÔNG đụng dữ liệu
 
-  // dữ liệu mẫu (đủ 13 cột: ..., proofImage, rejectReason)
-  var sample = [
-    ['TX1001', 'Income',  'Bán váy hoa',       'Đã chi',    3, 350000, 1050000, 'Khách lẻ',        '', fmtDate(new Date()), 'staff', '', ''],
-    ['TX1002', 'Expense', 'Nhập lô áo thun',   'Đã chi',    20, 80000, 1600000, 'Nhà cung cấp A',  '', fmtDate(new Date()), 'staff', '', ''],
-    ['TX1003', 'Income',  'Bán combo set',     'Chờ duyệt', 2, 500000, 1000000, 'Đơn online',      '', fmtDate(new Date()), 'staff', '', '']
-  ];
-  tx.getRange(2, 1, sample.length, TX_HEADERS.length).setValues(sample);
+  // chỉ nạp dữ liệu mẫu khi chưa có dòng giao dịch nào
+  if (tx.getLastRow() < 2) {
+    var sample = [
+      ['TX1001', 'Income',  'Bán váy hoa',       'Đã chi',    3, 350000, 1050000, 'Khách lẻ',        '', fmtDate(new Date()), 'staff', '', ''],
+      ['TX1002', 'Expense', 'Nhập lô áo thun',   'Đã chi',    20, 80000, 1600000, 'Nhà cung cấp A',  '', fmtDate(new Date()), 'staff', '', ''],
+      ['TX1003', 'Income',  'Bán combo set',     'Chờ duyệt', 2, 500000, 1000000, 'Đơn online',      '', fmtDate(new Date()), 'staff', '', '']
+    ];
+    tx.getRange(2, 1, sample.length, TX_HEADERS.length).setValues(sample);
+  }
 
   // ----- sheet users -----
   var us = book.getSheetByName(SHEET_USER) || book.insertSheet(SHEET_USER);
-  us.clear();
-  us.getRange(1, 1, 1, USER_HEADERS.length).setValues([USER_HEADERS]).setFontWeight('bold');
-  us.setFrozenRows(1);
-  var users = [
-    ['staff', '123', 'Nhân viên bán hàng', 'staff'],
-    ['ketoan', '123', 'Kế toán 3PM',        'accountant']
-  ];
-  us.getRange(2, 1, users.length, USER_HEADERS.length).setValues(users);
+  if (us.getLastRow() === 0) {
+    us.getRange(1, 1, 1, USER_HEADERS.length).setValues([USER_HEADERS]).setFontWeight('bold');
+    us.setFrozenRows(1);
+  }
+  if (us.getLastRow() < 2) {
+    var users = [
+      ['staff', '123', 'Nhân viên bán hàng', 'staff'],
+      ['ketoan', '123', 'Kế toán 3PM',        'accountant']
+    ];
+    us.getRange(2, 1, users.length, USER_HEADERS.length).setValues(users);
+  }
 
   // tạo folder Drive sẵn
   getOrCreateFolder(DRIVE_FOLDER_NAME);
 
-  Logger.log('Setup xong!');
+  Logger.log('Setup xong (giữ nguyên dữ liệu hiện có)!');
 }
