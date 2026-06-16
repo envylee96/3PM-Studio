@@ -1,0 +1,118 @@
+/**********************************************************************
+ * style.css - 3PM
+ * Màu chủ đạo: cam #D97706, trắng kem #FFFBEB, đen #1F2937
+ **********************************************************************/
+:root {
+  --primary: #D97706;
+  --primary-dark: #B45309;
+  --cream: #FFFBEB;
+  --ink: #1F2937;
+  --muted: #6B7280;
+  --border: #E5E7EB;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  margin: 0;
+}
+
+/* ===== Navbar ===== */
+.navbar-3pm {
+  background: var(--ink);
+  border-bottom: 3px solid var(--primary);
+}
+.navbar-3pm .brand {
+  font-weight: 800;
+  font-size: 1.4rem;
+  color: var(--primary);
+  letter-spacing: 1px;
+}
+.navbar-3pm .nav-link { color: #fff !important; font-weight: 500; }
+.navbar-3pm .nav-link.active { color: var(--primary) !important; }
+
+/* ===== Buttons ===== */
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.btn-primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+.btn-outline-primary { color: var(--primary); border-color: var(--primary); }
+.btn-outline-primary:hover { background: var(--primary); border-color: var(--primary); }
+
+/* ===== Dashboard cards ===== */
+.stat-card {
+  border: none;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0,0,0,.05);
+  border-left: 5px solid var(--primary);
+}
+.stat-card .label { color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .5px; }
+.stat-card .value { font-size: 1.6rem; font-weight: 800; }
+.stat-income { border-left-color: #16a34a; }
+.stat-expense { border-left-color: #dc2626; }
+.stat-profit { border-left-color: var(--primary); }
+
+/* ===== Bảng giống Excel ===== */
+.table-excel {
+  background: #fff;
+  border: 1px solid var(--border);
+}
+.table-excel thead th {
+  background: var(--ink);
+  color: #fff;
+  font-size: .82rem;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  border: 1px solid #374151;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+.table-excel td, .table-excel th {
+  border: 1px solid var(--border);
+  vertical-align: middle;
+  font-size: .9rem;
+}
+.table-excel tbody tr:nth-child(even) { background: #FEFCE8; }
+.table-excel tbody tr:hover { background: #FEF3C7; }
+
+.table-wrap { max-height: 65vh; overflow: auto; border-radius: 10px; }
+
+/* ===== Badge trạng thái & loại ===== */
+.badge-status { font-size: .75rem; padding: .35em .6em; }
+.st-pending  { background: #FEF3C7; color: #92400E; }
+.st-approved { background: #DCFCE7; color: #166534; }
+.st-rejected { background: #FEE2E2; color: #991B1B; }
+.type-income  { color: #16a34a; font-weight: 700; }
+.type-expense { color: #dc2626; font-weight: 700; }
+
+.thumb {
+  width: 42px; height: 42px; object-fit: cover;
+  border-radius: 6px; border: 1px solid var(--border); cursor: pointer;
+}
+
+/* ===== Filter bar ===== */
+.filter-bar {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.section-title {
+  font-weight: 800;
+  border-left: 5px solid var(--primary);
+  padding-left: 10px;
+}
+
+/* ===== Login overlay ===== */
+.login-card { max-width: 380px; margin: 8vh auto; }
+
+@media (max-width: 576px) {
+  .stat-card .value { font-size: 1.3rem; }
+}
