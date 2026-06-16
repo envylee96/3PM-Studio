@@ -92,7 +92,12 @@ function readAll(sheetName) {
   var rows = [];
   for (var i = 1; i < values.length; i++) {
     var obj = {};
-    for (var c = 0; c < headers.length; c++) obj[headers[c]] = values[i][c];
+    for (var c = 0; c < headers.length; c++) {
+      var val = values[i][c];
+      // Google Sheet hay tự ép chuỗi ngày thành Date -> chuẩn hóa lại về text
+      if (val instanceof Date) val = fmtDate(val);
+      obj[headers[c]] = val;
+    }
     obj._row = i + 1; // số dòng thực tế trong sheet
     rows.push(obj);
   }
