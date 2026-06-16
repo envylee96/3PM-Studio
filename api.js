@@ -32,7 +32,7 @@ const Api = {
   dashboard: () => apiGet('dashboard'),
   createTransaction: (tx) => apiPost('create', tx),
   updateTransaction: (tx) => apiPost('update', tx),
-  updateStatus: (id, status) => apiPost('updateStatus', { id, status }),
+  updateStatus: (id, status, extra = {}) => apiPost('updateStatus', { id, status, ...extra }),
   deleteTransaction: (id) => apiPost('delete', { id }),
   login: (username, password) => apiPost('login', { username, password }),
 
