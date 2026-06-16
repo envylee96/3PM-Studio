@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3PM · Dashboard Thu Chi</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="style.css" rel="stylesheet">
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar navbar-expand-lg navbar-3pm px-3">
+    <div class="container-fluid">
+      <span class="brand">🕒 3PM</span>
+      <button class="navbar-toggler bg-light" data-bs-toggle="collapse" data-bs-target="#nav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="nav">
+        <ul class="navbar-nav me-auto ms-3">
+          <li class="nav-item"><a class="nav-link active" href="index.html">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="transaction.html">Giao dịch</a></li>
+        </ul>
+        <span class="navbar-text text-light me-3" id="userLabel"></span>
+        <button class="btn btn-sm btn-outline-light" onclick="logout()">Đăng xuất</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container-fluid py-4 px-md-5">
+    <h4 class="section-title mb-4">Tổng quan tháng <span id="curMonth"></span></h4>
+
+    <!-- STAT CARDS -->
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-md-4">
+        <div class="card stat-card stat-income p-3">
+          <div class="label">Tổng thu tháng này</div>
+          <div class="value text-success" id="statIncome">…</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card stat-card stat-expense p-3">
+          <div class="label">Tổng chi tháng này</div>
+          <div class="value text-danger" id="statExpense">…</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card stat-card stat-profit p-3">
+          <div class="label">Lợi nhuận</div>
+          <div class="value" id="statProfit">…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHART -->
+    <div class="card stat-card p-3">
+      <div class="label mb-2">Biểu đồ thu chi 6 tháng gần nhất</div>
+      <canvas id="chart" height="90"></canvas>
+    </div>
+
+    <p class="text-muted small mt-3">
+      <i class="bi bi-info-circle"></i>
+      Chỉ các giao dịch <b>Đã duyệt</b> mới được tính vào số liệu trên.
+    </p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="api.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
