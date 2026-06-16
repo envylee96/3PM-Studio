@@ -16,10 +16,12 @@ async function apiGet(action, params = {}) {
 /** POST: create, update, updateStatus, delete, upload, login
  *  Dùng text/plain để tránh CORS preflight với Apps Script */
 async function apiPost(action, payload = {}) {
+  // đính kèm actor = username đang đăng nhập để backend xác thực quyền theo sheet users
+  const u = (typeof currentUser === 'function') ? currentUser() : null;
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action, ...payload })
+    body: JSON.stringify({ action, actor: u ? u.username : '', ...payload })
   });
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || 'Lỗi không xác định');
