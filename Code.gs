@@ -21,7 +21,9 @@ var DRIVE_FOLDER_NAME = '3PM_Receipts'; // folder lưu ảnh hóa đơn
 // Thứ tự cột trong sheet transactions
 var TX_HEADERS = [
   'id', 'type', 'title', 'status', 'quantity', 'unitPrice',
-  'total', 'note', 'imageUrl', 'createdAt', 'createdBy'
+  'total', 'note', 'imageUrl', 'createdAt', 'createdBy',
+  'proofImage',   // ảnh xác nhận đã chuyển tiền (khi trạng thái = Đã chi)
+  'rejectReason'  // lý do từ chối chi tiền (khi trạng thái = Từ chối)
 ];
 var USER_HEADERS = ['username', 'password', 'displayName', 'role'];
 
@@ -83,8 +85,21 @@ function getSheet(name) {
   return sheet;
 }
 
+/** Đảm bảo sheet transactions có đủ các cột trong TX_HEADERS (tự thêm nếu thiếu) */
+function ensureTxHeaders() {
+  var sheet = getSheet(SHEET_TX);
+  var lastCol = sheet.getLastColumn();
+  var headers = lastCol ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+  var changed = false;
+  TX_HEADERS.forEach(function (h) {
+    if (headers.indexOf(h) === -1) { headers.push(h); changed = true; }
+  });
+  if (changed) sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+}
+
 /** Đọc toàn bộ sheet -> mảng object theo header dòng 1 */
 function readAll(sheetName) {
+  if (sheetName === SHEET_TX) ensureTxHeaders();
   var sheet = getSheet(sheetName);
   var values = sheet.getDataRange().getValues();
   if (values.length < 2) return [];
@@ -153,7 +168,7 @@ function apiList(p) {
 // ===================================================================
 function apiDashboard(p) {
   var rows = readAll(SHEET_TX).filter(function (r) {
-    return r.status === 'Đã duyệt';
+    return r.status === 'Đã chi';
   });
 
   var now = new Date();
@@ -214,7 +229,9 @@ function apiCreate(p) {
     note: p.note || '',
     imageUrl: p.imageUrl || '',
     createdAt: fmtDate(new Date()),
-    createdBy: p.createdBy || 'staff'
+    createdBy: p.createdBy || 'staff',
+    proofImage: '',
+    rejectReason: ''
   };
 
   sheet.appendRow(TX_HEADERS.map(function (h) { return row[h]; }));
@@ -243,7 +260,9 @@ function apiUpdate(p) {
     note: p.note || '',
     imageUrl: p.imageUrl || target.imageUrl || '',
     createdAt: target.createdAt,        // giữ nguyên ngày tạo
-    createdBy: target.createdBy
+    createdBy: target.createdBy,
+    proofImage: target.proofImage || '',     // giữ nguyên chứng từ duyệt
+    rejectReason: target.rejectReason || ''   // giữ nguyên lý do từ chối
   };
 
   var values = TX_HEADERS.map(function (h) { return updated[h]; });
@@ -255,15 +274,31 @@ function apiUpdate(p) {
 //  API: UPDATE STATUS  (Kế toán duyệt / từ chối)
 // ===================================================================
 function apiUpdateStatus(p) {
-  var allow = ['Chờ duyệt', 'Đã duyệt', 'Từ chối'];
+  var allow = ['Chờ duyệt', 'Đã chi', 'Từ chối'];
   if (allow.indexOf(p.status) === -1) throw new Error('Trạng thái không hợp lệ');
 
   var rows = readAll(SHEET_TX);
   var target = findById(rows, p.id);
   var sheet = getSheet(SHEET_TX);
-  var col = TX_HEADERS.indexOf('status') + 1;
-  sheet.getRange(target._row, col).setValue(p.status);
-  return { id: p.id, status: p.status };
+  var headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  function setCol(name, val) {
+    var i = headerRow.indexOf(name);
+    if (i >= 0) sheet.getRange(target._row, i + 1).setValue(val);
+  }
+
+  setCol('status', p.status);
+  // Đã chi -> bắt buộc có ảnh chuyển tiền; Từ chối -> bắt buộc có lý do
+  if (p.status === 'Đã chi') {
+    if (!p.proofImage) throw new Error('Thiếu ảnh xác nhận đã chuyển tiền');
+    setCol('proofImage', p.proofImage);
+  }
+  if (p.status === 'Từ chối') {
+    if (!p.reason) throw new Error('Thiếu lý do từ chối');
+    setCol('rejectReason', p.reason);
+  }
+
+  return { id: p.id, status: p.status, proofImage: p.proofImage || '', reason: p.reason || '' };
 }
 
 // ===================================================================
@@ -340,11 +375,11 @@ function setup() {
   tx.getRange(1, 1, 1, TX_HEADERS.length).setValues([TX_HEADERS]).setFontWeight('bold');
   tx.setFrozenRows(1);
 
-  // dữ liệu mẫu
+  // dữ liệu mẫu (đủ 13 cột: ..., proofImage, rejectReason)
   var sample = [
-    ['TX1001', 'Income',  'Bán váy hoa',       'Đã duyệt', 3, 350000, 1050000, 'Khách lẻ',        '', fmtDate(new Date()), 'staff'],
-    ['TX1002', 'Expense', 'Nhập lô áo thun',   'Đã duyệt', 20, 80000, 1600000, 'Nhà cung cấp A',  '', fmtDate(new Date()), 'staff'],
-    ['TX1003', 'Income',  'Bán combo set',     'Chờ duyệt', 2, 500000, 1000000, 'Đơn online',      '', fmtDate(new Date()), 'staff']
+    ['TX1001', 'Income',  'Bán váy hoa',       'Đã chi',    3, 350000, 1050000, 'Khách lẻ',        '', fmtDate(new Date()), 'staff', '', ''],
+    ['TX1002', 'Expense', 'Nhập lô áo thun',   'Đã chi',    20, 80000, 1600000, 'Nhà cung cấp A',  '', fmtDate(new Date()), 'staff', '', ''],
+    ['TX1003', 'Income',  'Bán combo set',     'Chờ duyệt', 2, 500000, 1000000, 'Đơn online',      '', fmtDate(new Date()), 'staff', '', '']
   ];
   tx.getRange(2, 1, sample.length, TX_HEADERS.length).setValues(sample);
 
