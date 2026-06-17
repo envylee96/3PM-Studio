@@ -76,6 +76,7 @@ function renderChart(c) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       layout: { padding: { top: 24 } }, // chừa chỗ cho nhãn số trên đầu cột
       plugins: {
         legend: { position: 'top' },
@@ -119,6 +120,7 @@ function renderDailyChart(c) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { position: 'top' },
