@@ -172,7 +172,7 @@ function apiList(p) {
 // ===================================================================
 function apiDashboard(p) {
   var rows = readAll(SHEET_TX).filter(function (r) {
-    return r.status === 'Đã chi';
+    return r.status === 'Đã chi' || r.status === 'Đã thu';
   });
 
   var now = new Date();
@@ -306,7 +306,7 @@ function apiUpdate(p) {
 // ===================================================================
 function apiUpdateStatus(p) {
   var actor = requireUser(p, ['accountant']);  // chỉ Kế toán được duyệt / từ chối
-  var allow = ['Chờ duyệt', 'Đã chi', 'Từ chối'];
+  var allow = ['Chờ duyệt', 'Đã thu', 'Đã chi', 'Từ chối'];
   if (allow.indexOf(p.status) === -1) throw new Error('Trạng thái không hợp lệ');
 
   var rows = readAll(SHEET_TX);
@@ -320,17 +320,17 @@ function apiUpdateStatus(p) {
   }
 
   setCol('status', p.status);
-  // Đã chi -> bắt buộc có ảnh chuyển tiền; Từ chối -> bắt buộc có lý do
-  if (p.status === 'Đã chi') {
-    if (!p.proofImage) throw new Error('Thiếu ảnh xác nhận đã chuyển tiền');
+  // Đã thu/Đã chi -> bắt buộc có ảnh chứng từ; Từ chối -> bắt buộc có lý do
+  if (p.status === 'Đã chi' || p.status === 'Đã thu') {
+    if (!p.proofImage) throw new Error('Thiếu ảnh xác nhận chuyển/nhận tiền');
     setCol('proofImage', p.proofImage);
   }
   if (p.status === 'Từ chối') {
     if (!p.reason) throw new Error('Thiếu lý do từ chối');
     setCol('rejectReason', p.reason);
   }
-  // ghi nhận người duyệt khi Kế toán xử lý (Đã chi / Từ chối)
-  if (p.status === 'Đã chi' || p.status === 'Từ chối') {
+  // ghi nhận người duyệt khi Kế toán xử lý (khác Chờ duyệt)
+  if (p.status !== 'Chờ duyệt') {
     setCol('approver', actor.username);
   }
 
@@ -453,7 +453,7 @@ function setup() {
   if (tx.getLastRow() < 2) {
     var today = fmtDate(new Date()).substring(0, 10);
     var sample = [
-      ['TX1001', 'Income',  'Bán váy hoa',       'Đã chi',    3, 350000, 1050000, 'Khách lẻ',        '', fmtDate(new Date()), 'staff', '', '', today, 'ketoan'],
+      ['TX1001', 'Income',  'Bán váy hoa',       'Đã thu',    3, 350000, 1050000, 'Khách lẻ',        '', fmtDate(new Date()), 'staff', '', '', today, 'ketoan'],
       ['TX1002', 'Expense', 'Nhập lô áo thun',   'Đã chi',    20, 80000, 1600000, 'Nhà cung cấp A',  '', fmtDate(new Date()), 'staff', '', '', today, 'ketoan'],
       ['TX1003', 'Income',  'Bán combo set',     'Chờ duyệt', 2, 500000, 1000000, 'Đơn online',      '', fmtDate(new Date()), 'staff', '', '', today, '']
     ];
