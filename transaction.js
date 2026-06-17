@@ -89,10 +89,11 @@ function renderRows(rows) {
   tbody.innerHTML = rows.map(r => {
     const typeCls = r.type === 'Income' ? 'type-income' : 'type-expense';
     const typeTxt = r.type === 'Income' ? 'Thu' : 'Chi';
-    // badge trạng thái + thông tin kèm theo (ảnh chuyển tiền / lý do từ chối)
+    // badge trạng thái + thông tin kèm theo (ảnh chứng từ / lý do từ chối)
     let st = statusBadge(r.status);
-    if (r.status === 'Đã chi' && r.proofImage) {
-      st += ` <a href="${r.proofImage}" target="_blank" title="Ảnh đã chuyển tiền"><i class="bi bi-receipt text-success"></i></a>`;
+    if ((r.status === 'Đã chi' || r.status === 'Đã thu') && r.proofImage) {
+      const tip = r.status === 'Đã thu' ? 'Ảnh đã nhận tiền' : 'Ảnh đã chuyển tiền';
+      st += ` <a href="${r.proofImage}" target="_blank" title="${tip}"><i class="bi bi-receipt text-success"></i></a>`;
     }
     if (r.status === 'Từ chối' && r.rejectReason) {
       st += ` <i class="bi bi-info-circle text-danger" title="Lý do: ${esc(r.rejectReason)}"></i>`;
@@ -105,8 +106,9 @@ function renderRows(rows) {
     // nút duyệt/từ chối chỉ hiện với kế toán & khi đang Chờ duyệt
     let approveBtns = '';
     if (isAcct && r.status === 'Chờ duyệt') {
+      const approveTitle = r.type === 'Income' ? 'Duyệt - đã thu' : 'Duyệt - đã chi';
       approveBtns = `
-        <button class="btn btn-sm btn-success" title="Duyệt - đã chi" onclick="openApprove('${r.id}')"><i class="bi bi-check-lg"></i></button>
+        <button class="btn btn-sm btn-success" title="${approveTitle}" onclick="openApprove('${r.id}','${r.type}')"><i class="bi bi-check-lg"></i></button>
         <button class="btn btn-sm btn-warning" title="Từ chối" onclick="openReject('${r.id}')"><i class="bi bi-x-lg"></i></button>`;
     }
 
@@ -134,7 +136,12 @@ function renderRows(rows) {
 }
 
 function statusBadge(s) {
-  const map = { 'Chờ duyệt': 'st-pending', 'Đã chi': 'st-approved', 'Từ chối': 'st-rejected' };
+  const map = {
+    'Chờ duyệt': 'st-pending',
+    'Đã thu': 'st-approved',
+    'Đã chi': 'st-approved',
+    'Từ chối': 'st-rejected'
+  };
   return `<span class="badge badge-status ${map[s] || ''}">${s}</span>`;
 }
 
@@ -231,11 +238,17 @@ async function saveTx() {
   }
 }
 
-// ---- DUYỆT (Đã chi) / TỪ CHỐI ----
-function openApprove(id) {
+// ---- DUYỆT (Đã thu / Đã chi) / TỪ CHỐI ----
+let actionTxType = 'Expense';
+function openApprove(id, type) {
   actionMode = 'approve';
+  actionTxType = type;
+  const isIncome = type === 'Income';
   document.getElementById('actId').value = id;
-  document.getElementById('actionTitle').textContent = 'Duyệt chi — tải ảnh đã chuyển tiền';
+  document.getElementById('actionTitle').textContent =
+    isIncome ? 'Duyệt thu — tải ảnh đã nhận tiền' : 'Duyệt chi — tải ảnh đã chuyển tiền';
+  document.getElementById('proofLabel').innerHTML =
+    (isIncome ? 'Ảnh xác nhận đã nhận tiền' : 'Ảnh xác nhận đã chuyển tiền') + ' <span class="text-danger">*</span>';
   document.getElementById('proofImage').value = '';
   document.getElementById('proofPreview').classList.add('d-none');
   document.getElementById('rejectReason').value = '';
@@ -263,10 +276,11 @@ async function confirmAction() {
   try {
     if (actionMode === 'approve') {
       const f = document.getElementById('proofImage').files[0];
-      if (!f) { alert('Vui lòng chọn ảnh xác nhận đã chuyển tiền'); btn.disabled = false; return; }
+      if (!f) { alert('Vui lòng chọn ảnh chứng từ'); btn.disabled = false; return; }
       btn.textContent = 'Đang tải ảnh…';
       const up = await Api.uploadImage(f);
-      await Api.updateStatus(id, 'Đã chi', { proofImage: up.url });
+      const newStatus = actionTxType === 'Income' ? 'Đã thu' : 'Đã chi';
+      await Api.updateStatus(id, newStatus, { proofImage: up.url });
     } else {
       const reason = document.getElementById('rejectReason').value.trim();
       if (!reason) { alert('Vui lòng nhập lý do từ chối'); btn.disabled = false; return; }
