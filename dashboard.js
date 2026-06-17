@@ -25,6 +25,7 @@ async function loadDashboard() {
     profitEl.classList.add(d.profit >= 0 ? 'text-success' : 'text-danger');
 
     renderChart(d.chart);
+    if (d.chartDaily) renderDailyChart(d.chartDaily);
   } catch (e) {
     alert('Lỗi tải dashboard: ' + e.message);
   }
@@ -92,5 +93,42 @@ function renderChart(c) {
       }
     },
     plugins: [barValueLabels]
+  });
+}
+
+let dailyChartRef = null;
+function renderDailyChart(c) {
+  const ctx = document.getElementById('chartDaily');
+  if (dailyChartRef) dailyChartRef.destroy();
+  dailyChartRef = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: c.labels,
+      datasets: [
+        {
+          label: 'Thu', data: c.incomes,
+          borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,.1)',
+          fill: true, tension: .3, pointRadius: 2
+        },
+        {
+          label: 'Chi', data: c.expenses,
+          borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,.1)',
+          fill: true, tension: .3, pointRadius: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: { label: (item) => `${item.dataset.label}: ${formatVND(item.parsed.y)}` }
+        }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: v => shortMoney(v) } }
+      }
+    }
   });
 }
