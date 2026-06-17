@@ -63,7 +63,7 @@ async function doLogin() {
 // ---- LOAD TABLE ----
 async function loadTable() {
   const tbody = document.getElementById('tbody');
-  tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted py-4">Đang tải…</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="14" class="text-center text-muted py-4">Đang tải…</td></tr>`;
   try {
     const rows = await Api.listTransactions({
       search: document.getElementById('fSearch').value.trim(),
@@ -72,7 +72,7 @@ async function loadTable() {
     });
     renderRows(rows);
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="12" class="text-center text-danger py-4">Lỗi: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="14" class="text-center text-danger py-4">Lỗi: ${e.message}</td></tr>`;
   }
 }
 
@@ -82,7 +82,7 @@ function renderRows(rows) {
   const tbody = document.getElementById('tbody');
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted py-4">Không có giao dịch.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="14" class="text-center text-muted py-4">Không có giao dịch.</td></tr>`;
     return;
   }
 
@@ -120,8 +120,10 @@ function renderRows(rows) {
       <td class="text-end fw-bold">${formatVND(r.total)}</td>
       <td>${esc(r.note)}</td>
       <td class="text-center">${img}</td>
+      <td><small>${(r.txDate || '').toString().substring(0, 10) || '—'}</small></td>
       <td><small>${r.createdAt}</small></td>
       <td>${esc(r.createdBy)}</td>
+      <td>${esc(r.approver) || '<span class="text-muted">—</span>'}</td>
       <td class="text-nowrap">
         ${approveBtns}
         <button class="btn btn-sm btn-outline-primary" title="Sửa" onclick='openEdit(${JSON.stringify(r)})'><i class="bi bi-pencil"></i></button>
@@ -157,6 +159,7 @@ function openEdit(r) {
   document.getElementById('fId').value = r.id;
   document.getElementById('fType').value = r.type;
   document.getElementById('fTitle').value = r.title;
+  document.getElementById('fTxDate').value = (r.txDate || '').toString().substring(0, 10);
   document.getElementById('fQty').value = r.quantity;
   document.getElementById('fPrice').value = r.unitPrice;
   document.getElementById('fNote').value = r.note;
@@ -175,6 +178,8 @@ function resetForm() {
   document.getElementById('fPrice').value = 0;
   document.getElementById('fImage').value = '';
   document.getElementById('imgPreview').classList.add('d-none');
+  // mặc định ngày thu/chi = hôm nay
+  document.getElementById('fTxDate').value = new Date().toISOString().substring(0, 10);
   uploadedImageUrl = '';
 }
 
@@ -209,6 +214,7 @@ async function saveTx() {
       quantity: document.getElementById('fQty').value,
       unitPrice: document.getElementById('fPrice').value,
       note: document.getElementById('fNote').value.trim(),
+      txDate: document.getElementById('fTxDate').value,
       imageUrl: uploadedImageUrl,
       createdBy: u ? u.username : 'staff'
     };
