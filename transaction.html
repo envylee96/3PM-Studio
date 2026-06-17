@@ -80,12 +80,13 @@
             <tr>
               <th>ID</th><th>Loại</th><th>Khoản thu/chi</th><th>Trạng thái</th>
               <th class="text-end">SL</th><th class="text-end">Đơn giá</th><th class="text-end">Tổng tiền</th>
-              <th>Ghi chú</th><th>Ảnh</th><th>Ngày tạo</th><th>Người tạo</th>
+              <th>Ghi chú</th><th>Ảnh</th><th>Ngày thu/chi</th><th>Ngày tạo</th>
+              <th>Người tạo</th><th>Người duyệt</th>
               <th style="min-width:170px">Thao tác</th>
             </tr>
           </thead>
           <tbody id="tbody">
-            <tr><td colspan="12" class="text-center text-muted py-4">Đang tải…</td></tr>
+            <tr><td colspan="14" class="text-center text-muted py-4">Đang tải…</td></tr>
           </tbody>
         </table>
       </div>
@@ -103,16 +104,20 @@
         <div class="modal-body">
           <input type="hidden" id="fId">
           <div class="row g-3">
-            <div class="col-md-6">
+            <div class="col-md-4">
               <label class="form-label">Loại</label>
               <select id="fType" class="form-select">
                 <option value="Income">Thu (Income)</option>
                 <option value="Expense">Chi (Expense)</option>
               </select>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-5">
               <label class="form-label">Khoản thu/chi</label>
               <input id="fTitle" class="form-control" placeholder="VD: Bán váy hoa">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Ngày thu/chi</label>
+              <input id="fTxDate" type="date" class="form-control">
             </div>
             <div class="col-md-4">
               <label class="form-label">Số lượng</label>
