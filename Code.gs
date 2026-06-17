@@ -23,7 +23,9 @@ var TX_HEADERS = [
   'id', 'type', 'title', 'status', 'quantity', 'unitPrice',
   'total', 'note', 'imageUrl', 'createdAt', 'createdBy',
   'proofImage',   // ảnh xác nhận đã chuyển tiền (khi trạng thái = Đã chi)
-  'rejectReason'  // lý do từ chối chi tiền (khi trạng thái = Từ chối)
+  'rejectReason', // lý do từ chối chi tiền (khi trạng thái = Từ chối)
+  'txDate',       // ngày thu/chi - do người tạo nhập
+  'approver'      // người duyệt - username kế toán đã duyệt/từ chối
 ];
 var USER_HEADERS = ['username', 'password', 'displayName', 'role'];
 
@@ -234,7 +236,9 @@ function apiCreate(p) {
     createdAt: fmtDate(new Date()),
     createdBy: actor.username,       // lấy từ user đã xác thực, không tin client
     proofImage: '',
-    rejectReason: ''
+    rejectReason: '',
+    txDate: p.txDate || fmtDate(new Date()).substring(0, 10), // ngày thu/chi do người tạo nhập
+    approver: ''
   };
 
   sheet.appendRow(TX_HEADERS.map(function (h) { return row[h]; }));
@@ -266,7 +270,9 @@ function apiUpdate(p) {
     createdAt: target.createdAt,        // giữ nguyên ngày tạo
     createdBy: target.createdBy,
     proofImage: target.proofImage || '',     // giữ nguyên chứng từ duyệt
-    rejectReason: target.rejectReason || ''   // giữ nguyên lý do từ chối
+    rejectReason: target.rejectReason || '',  // giữ nguyên lý do từ chối
+    txDate: p.txDate || target.txDate || '',  // ngày thu/chi (cho sửa)
+    approver: target.approver || ''           // giữ nguyên người duyệt
   };
 
   var values = TX_HEADERS.map(function (h) { return updated[h]; });
@@ -278,7 +284,7 @@ function apiUpdate(p) {
 //  API: UPDATE STATUS  (Kế toán duyệt / từ chối)
 // ===================================================================
 function apiUpdateStatus(p) {
-  requireUser(p, ['accountant']);      // chỉ Kế toán được duyệt / từ chối
+  var actor = requireUser(p, ['accountant']);  // chỉ Kế toán được duyệt / từ chối
   var allow = ['Chờ duyệt', 'Đã chi', 'Từ chối'];
   if (allow.indexOf(p.status) === -1) throw new Error('Trạng thái không hợp lệ');
 
@@ -302,8 +308,12 @@ function apiUpdateStatus(p) {
     if (!p.reason) throw new Error('Thiếu lý do từ chối');
     setCol('rejectReason', p.reason);
   }
+  // ghi nhận người duyệt khi Kế toán xử lý (Đã chi / Từ chối)
+  if (p.status === 'Đã chi' || p.status === 'Từ chối') {
+    setCol('approver', actor.username);
+  }
 
-  return { id: p.id, status: p.status, proofImage: p.proofImage || '', reason: p.reason || '' };
+  return { id: p.id, status: p.status, approver: actor.username, proofImage: p.proofImage || '', reason: p.reason || '' };
 }
 
 // ===================================================================
@@ -420,10 +430,11 @@ function setup() {
 
   // chỉ nạp dữ liệu mẫu khi chưa có dòng giao dịch nào
   if (tx.getLastRow() < 2) {
+    var today = fmtDate(new Date()).substring(0, 10);
     var sample = [
-      ['TX1001', 'Income',  'Bán váy hoa',       'Đã chi',    3, 350000, 1050000, 'Khách lẻ',        '', fmtDate(new Date()), 'staff', '', ''],
-      ['TX1002', 'Expense', 'Nhập lô áo thun',   'Đã chi',    20, 80000, 1600000, 'Nhà cung cấp A',  '', fmtDate(new Date()), 'staff', '', ''],
-      ['TX1003', 'Income',  'Bán combo set',     'Chờ duyệt', 2, 500000, 1000000, 'Đơn online',      '', fmtDate(new Date()), 'staff', '', '']
+      ['TX1001', 'Income',  'Bán váy hoa',       'Đã chi',    3, 350000, 1050000, 'Khách lẻ',        '', fmtDate(new Date()), 'staff', '', '', today, 'ketoan'],
+      ['TX1002', 'Expense', 'Nhập lô áo thun',   'Đã chi',    20, 80000, 1600000, 'Nhà cung cấp A',  '', fmtDate(new Date()), 'staff', '', '', today, 'ketoan'],
+      ['TX1003', 'Income',  'Bán combo set',     'Chờ duyệt', 2, 500000, 1000000, 'Đơn online',      '', fmtDate(new Date()), 'staff', '', '', today, '']
     ];
     tx.getRange(2, 1, sample.length, TX_HEADERS.length).setValues(sample);
   }
