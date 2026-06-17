@@ -63,6 +63,7 @@
             <select id="fStatus" class="form-select">
               <option value="">-- Tất cả trạng thái --</option>
               <option>Chờ duyệt</option>
+              <option>Đã thu</option>
               <option>Đã chi</option>
               <option>Từ chối</option>
             </select>
@@ -165,7 +166,7 @@
 
           <!-- Duyệt: upload ảnh chuyển tiền -->
           <div id="approveSection">
-            <label class="form-label">Ảnh xác nhận đã chuyển tiền <span class="text-danger">*</span></label>
+            <label class="form-label" id="proofLabel">Ảnh xác nhận đã chuyển tiền <span class="text-danger">*</span></label>
             <input id="proofImage" type="file" accept="image/*" class="form-control">
             <div class="mt-2">
               <img id="proofPreview" class="d-none" style="max-height:160px;border-radius:8px">
