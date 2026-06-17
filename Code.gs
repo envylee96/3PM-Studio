@@ -204,12 +204,33 @@ function apiDashboard(p) {
     expenses.push(byMonth[key] ? byMonth[key].expense : 0);
   }
 
+  // 30 ngày gần nhất (theo txDate - ngày thu/chi thực tế, fallback createdAt)
+  var byDay = {}; // { 'yyyy-MM-dd': {income, expense} }
+  rows.forEach(function (r) {
+    var ds = String(r.txDate || r.createdAt || '').substring(0, 10);
+    if (!ds) return;
+    if (!byDay[ds]) byDay[ds] = { income: 0, expense: 0 };
+    var total = num(r.total);
+    if (r.type === 'Income') byDay[ds].income += total;
+    else if (r.type === 'Expense') byDay[ds].expense += total;
+  });
+
+  var dayLabels = [], dayIncomes = [], dayExpenses = [];
+  for (var k = 29; k >= 0; k--) {
+    var dd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - k);
+    var key = Utilities.formatDate(dd, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    dayLabels.push(Utilities.formatDate(dd, Session.getScriptTimeZone(), 'dd/MM'));
+    dayIncomes.push(byDay[key] ? byDay[key].income : 0);
+    dayExpenses.push(byDay[key] ? byDay[key].expense : 0);
+  }
+
   return {
     month: curMonth,
     totalIncome: incomeMonth,
     totalExpense: expenseMonth,
     profit: incomeMonth - expenseMonth,
-    chart: { labels: labels, incomes: incomes, expenses: expenses }
+    chart: { labels: labels, incomes: incomes, expenses: expenses },
+    chartDaily: { labels: dayLabels, incomes: dayIncomes, expenses: dayExpenses }
   };
 }
 
